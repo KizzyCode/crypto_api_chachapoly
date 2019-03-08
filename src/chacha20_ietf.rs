@@ -7,7 +7,11 @@ use std::{ cmp::min, error::Error };
 
 
 /// The maximum amount of bytes that can be processed with one key/nonce combination
+#[cfg(target_pointer_width = "64")]
 const CHACHA20_MAX: usize = 4_294_967_296 * 64; // 2^32 * BLOCK_SIZE
+/// The maximum amount of bytes that can be processed with one key/nonce combination
+#[cfg(target_pointer_width = "32")]
+const CHACHA20_MAX: usize = usize::max_value(); // 2^32 - 1
 
 
 /// Computes the `n`th ChaCha20 block with `key` and `nonce` into `buf`
