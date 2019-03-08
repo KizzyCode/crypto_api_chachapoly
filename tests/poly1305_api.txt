@@ -1,0 +1,18 @@
+# Invalid key length (< 32)
+key_len___: 31
+input_len_: 256
+output_len: 16
+error_desc: Invalid key length
+
+# Invalid key length (> 32)
+key_len___: 33
+input_len_: 256
+output_len: 16
+error_desc: Invalid key length
+
+
+# Invalid buffer length (< 16)
+key_len___: 32
+input_len_: 256
+output_len: 15
+error_desc: Buffer is too small

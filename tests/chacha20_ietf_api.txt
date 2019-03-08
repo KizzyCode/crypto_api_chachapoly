@@ -1,0 +1,36 @@
+# Invalid key length (< 32)
+key_len___: 31
+nonce_len_: 12
+input_len_: 256
+output_len: 256
+error_desc: Invalid key length
+
+# Invalid key length (> 32)
+key_len___: 33
+nonce_len_: 12
+input_len_: 256
+output_len: 256
+error_desc: Invalid key length
+
+
+# Invalid nonce length (< 12)
+key_len___: 32
+nonce_len_: 11
+input_len_: 256
+output_len: 256
+error_desc: Invalid nonce length
+
+# Invalid nonce length (> 12)
+key_len___: 32
+nonce_len_: 13
+input_len_: 256
+output_len: 256
+error_desc: Invalid nonce length
+
+
+# Invalid buffer length (< input_len_)
+key_len___: 32
+nonce_len_: 12
+input_len_: 256
+output_len: 255
+error_desc: Buffer is too small
