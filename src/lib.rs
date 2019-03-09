@@ -5,6 +5,7 @@ mod chachapoly_ietf;
 
 
 pub use crate::{ chacha20_ietf::ChaCha20Ietf, poly1305::Poly1305, chachapoly_ietf::ChachaPolyIetf };
+pub use crypto_api;
 use std::{
 	error::Error,
 	fmt::{ Display, Formatter, Result as FmtResult }
