@@ -23,8 +23,8 @@ fn chachapoly_seal(buf: &mut[u8], plaintext_len: usize, ad: &[u8], key: &[u8], n
 	
 	// Create the footer
 	let mut foot = Vec::with_capacity(16);
-	foot.extend_from_slice(&ad.len().to_le_bytes());
-	foot.extend_from_slice(&data.len().to_le_bytes());
+	foot.extend_from_slice(&(ad.len() as u64).to_le_bytes());
+	foot.extend_from_slice(&(data.len() as u64).to_le_bytes());
 	
 	// Compute the Poly1305 key and the authentication tag
 	let mut pkey = vec![0; 32];
@@ -41,8 +41,8 @@ fn chachapoly_open(buf: &mut[u8], ciphertext_len: usize, ad: &[u8], key: &[u8], 
 	
 	// Create the footer
 	let mut foot = Vec::with_capacity(16);
-	foot.extend_from_slice(&ad.len().to_le_bytes());
-	foot.extend_from_slice(&data.len().to_le_bytes());
+	foot.extend_from_slice(&(ad.len() as u64).to_le_bytes());
+	foot.extend_from_slice(&(data.len() as u64).to_le_bytes());
 	
 	// Compute the Poly1305 key and the authentication tag
 	let (mut pkey, mut tag) = (vec![0; 32], vec![0; 16]);
