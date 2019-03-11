@@ -1,6 +1,6 @@
 [package]
 name = "crypto_api_chachapoly"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2018"
 authors = ["Keziah Biermann <development@kizzycode.de>"]
 description = "An implementation of ChaCha20-IETF, Poly1305 and ChachaPoly-IETF for `crypto_api`"
@@ -11,7 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
-crypto_api = { git = "https://github.com/KizzyCode/crypto_api", version = "0.1.11" }
+crypto_api = "0.1.12"
 
 
 [profile.release]

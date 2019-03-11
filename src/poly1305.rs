@@ -158,7 +158,10 @@ impl SecKeyGen for Poly1305 {
 }
 impl Mac for Poly1305 {
 	fn info(&self) -> MacInfo {
-		MacInfo{ name: "Poly1305", mac_len: 16, key_len_min: 32, key_len_max: 32 }
+		MacInfo {
+			name: "Poly1305", is_one_time_mac: true,
+			mac_len: 16, key_len_min: 32, key_len_max: 32
+		}
 	}
 	
 	fn authenticate(&self, buf: &mut[u8], data: &[u8], key: &[u8])
