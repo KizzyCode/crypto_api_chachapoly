@@ -1,6 +1,6 @@
 [package]
 name = "crypto_api_chachapoly"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2018"
 authors = ["Keziah Biermann <development@kizzycode.de>"]
 description = "An implementation of ChaCha20-IETF, Poly1305 and ChachaPoly-IETF for `crypto_api`"
