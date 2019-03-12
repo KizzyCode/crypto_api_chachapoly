@@ -11,7 +11,7 @@ readme = "README.md"
 
 
 [dependencies]
-crypto_api = "0.1.12"
+crypto_api = "0.1.13"
 
 
 [profile.release]
