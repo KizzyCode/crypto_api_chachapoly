@@ -109,7 +109,10 @@ impl SecKeyGen for ChaCha20Ietf {
 }
 impl Cipher for ChaCha20Ietf {
 	fn info(&self) -> CipherInfo {
-		CipherInfo{ name: "ChaCha20Ietf", key_len: 32, nonce_len: 12, aead_tag_len: None }
+		CipherInfo {
+			name: "ChaCha20Ietf", is_otc: true,
+			key_len_r: 32..32, nonce_len_r: 12..12, aead_tag_len_r: 0..0
+		}
 	}
 	
 	fn encrypted_len_max(&self, plaintext_len: usize) -> usize {

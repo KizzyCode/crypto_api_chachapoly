@@ -82,7 +82,10 @@ impl SecKeyGen for ChachaPolyIetf {
 }
 impl Cipher for ChachaPolyIetf {
 	fn info(&self) -> CipherInfo {
-		CipherInfo{ name: "ChachaPolyIetf", key_len: 32, nonce_len: 12, aead_tag_len: Some(16) }
+		CipherInfo {
+			name: "ChachaPolyIetf", is_otc: true,
+			key_len_r: 32..32, nonce_len_r: 12..12, aead_tag_len_r: 16..16
+		}
 	}
 	
 	fn encrypted_len_max(&self, plaintext_len: usize) -> usize {

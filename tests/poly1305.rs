@@ -16,8 +16,7 @@ impl TestVector {
 		
 		// Compute the tag
 		let mut buf = [0u8; 32];
-		let out_len = mac.authenticate(&mut buf, &self.input_, &self.key___)
-			.unwrap();
+		let out_len = mac.auth(&mut buf, &self.input_, &self.key___).unwrap();
 		assert_eq!(self.output, &buf[..out_len], "@{} failed", self.line);
 	}
 }
@@ -53,7 +52,7 @@ impl ApiTestVector {
 		let mut output = vec![0; self.output_len];
 		
 		// Compute the tag
-		let err = mac.authenticate(&mut output, &input, &key).unwrap_err();
+		let err = mac.auth(&mut output, &input, &key).unwrap_err();
 		match err.downcast_ref::<ChachaPolyError>() {
 			Some(ChachaPolyError::ApiMisuse(desc)) => assert_eq!(
 				*desc, self.error_desc,
