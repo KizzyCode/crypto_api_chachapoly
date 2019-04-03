@@ -65,17 +65,17 @@ impl ApiTestVector {
 		
 		// Helper to check the error
 		macro_rules! test_err {
-		    ($fn:expr => $call:expr) => ({
-		    	let result = $call
-		    		.expect_err(&format!("`{}`: Unexpected success @{}", $fn, self.line));
-		    	
-		    	match result.downcast_ref::<ChachaPolyError>() {
-		    		Some(ChachaPolyError::ApiMisuse(desc)) => assert_eq!(
+			($fn:expr => $call:expr) => ({
+				let result = $call
+					.expect_err(&format!("`{}`: Unexpected success @{}", $fn, self.line));
+				
+				match result.downcast_ref::<ChachaPolyError>() {
+					Some(ChachaPolyError::ApiMisuse(desc)) => assert_eq!(
 						*desc, self.error_desc,
 						"`{}`: Invalid API-error description @{}", $fn, self.line
 					),
 					_ => panic!("`{}`: Invalid error returned @{}", $fn, self.line)
-		    	}
+				}
 			});
 		}
 		

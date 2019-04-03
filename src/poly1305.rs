@@ -59,7 +59,7 @@ fn poly1305_update(a: &mut[u32], r: &[u32], u: &[u32], mut data: &[u8], is_last:
 		
 		/// Converts `$a` and `$b` to `u64`s and multiplies them without overflow-trap
 		macro_rules! m {
-		    ($a:expr, $b:expr) => ({ mul!($a as u64, $b as u64) })
+			($a:expr, $b:expr) => ({ mul!($a as u64, $b as u64) })
 		}
 		// Multiply
 		w[0] = add!(m!(a[0], r[0]), m!(a[1], u[4]), m!(a[2], u[3]), m!(a[3], u[2]), m!(a[4], u[1]));

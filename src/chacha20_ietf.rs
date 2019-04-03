@@ -51,7 +51,7 @@ fn chacha20(key: &[u8], nonce: &[u8], n: u32, buf: &mut[u8]) {
 				state[$c] = add!(state[$c], state[$d]);
 				state[$b] = xor!(state[$b], state[$c]);
 				state[$b] = or!(shl!(state[$b],  7), shr!(state[$b], 25));
-    		});
+			});
 		}
 		
 		// Perform 8 quarterrounds (2 rounds)
@@ -66,7 +66,7 @@ fn chacha20(key: &[u8], nonce: &[u8], n: u32, buf: &mut[u8]) {
 	}
 	
 	// Finalize block
-	for i in  0.. 4 { write32_le!(add!(state[i],   CONSTANTS[i     ]) => &mut buf[i * 4..]) }
+	for i in  0.. 4 { write32_le!(add!(state[i],   CONSTANTS[i	 ]) => &mut buf[i * 4..]) }
 	for i in  4..12 { write32_le!(add!(state[i],   key_words[i -  4]) => &mut buf[i * 4..]) }
 	write32_le!(add!(state[12], n) => &mut buf[48..]);
 	for i in 13..16 { write32_le!(add!(state[i], nonce_words[i - 13]) => &mut buf[i * 4..]) }
