@@ -1,4 +1,5 @@
 #[macro_use] mod macros;
+#[macro_use] mod verify_input;
 mod chacha20_ietf;
 mod poly1305;
 mod chachapoly_ietf;
