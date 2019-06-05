@@ -61,5 +61,4 @@ fn main() {
 			println!("Completed {}M tests.", test_count/scale);
 		}
 	}
-	
 }
