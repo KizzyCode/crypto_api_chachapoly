@@ -13,6 +13,13 @@ const CHACHAPOLY_MAX: usize = (4_294_967_296 - 1) * 64; // (2^32 - 1) * BLOCK_SI
 #[cfg(target_pointer_width = "32")]
 const CHACHAPOLY_MAX: usize = usize::max_value() - 16; // 2^32 - 1 - 16
 
+/// The size of a ChaChaPoly key (256 bits/32 bytes)
+const CHACHAPOLY_KEY: usize = 32;
+/// The size of a ChaChaPoly nonce (96 bits/12 bytes)
+const CHACHAPOLY_NONCE: usize = 12;
+/// The size of a ChaChaPoly authentication tag
+const CHACHAPOLY_TAG: usize = 16;
+
 
 /// Encrypts `plaintext_len` bytes in `buf` and authenticates them together with `ad` using `key`
 /// and nonce
@@ -74,10 +81,12 @@ impl SecKeyGen for ChachaPolyIetf {
 	fn new_sec_key(&self, buf: &mut[u8], rng: &mut SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Validate buffer and generate key
-		if buf.len() < 32 { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
-		rng.random(&mut buf[..32])?;
-		Ok(32)
+		// Validate input
+		vfy_keygen!(CHACHAPOLY_KEY => buf);
+		
+		// Generate key
+		rng.random(&mut buf[..CHACHAPOLY_KEY])?;
+		Ok(CHACHAPOLY_KEY)
 	}
 }
 impl Cipher for ChachaPolyIetf {
@@ -118,51 +127,44 @@ impl AeadCipher for ChachaPolyIetf {
 	fn seal(&self, buf: &mut[u8], plaintext_len: usize, ad: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input
-		if key.len() != 32 { Err(ChachaPolyError::ApiMisuse("Invalid key length"))? }
-		if nonce.len() != 12 { Err(ChachaPolyError::ApiMisuse("Invalid nonce length"))? }
-		
-		if plaintext_len > CHACHAPOLY_MAX { Err(ChachaPolyError::ApiMisuse("Too much data"))? }
-		if plaintext_len + 16 > buf.len() {
-			Err(ChachaPolyError::ApiMisuse("Buffer is too small"))?
-		}
+		// Verify input
+		vfy_seal!(key, nonce, plaintext_len => buf);
 		
 		// Seal the data
 		chachapoly_seal(buf, plaintext_len, ad, key, nonce);
-		Ok(plaintext_len + 16)
+		Ok(plaintext_len + CHACHAPOLY_TAG)
 	}
 	fn seal_to(&self, buf: &mut[u8], plaintext: &[u8], ad: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input and copy plaintext into buf and encrypt in place
-		if plaintext.len() > buf.len() { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
+		// Verify input
+		vfy_seal!(key, nonce, plaintext => buf);
 		
+		// Copy the plaintext into buf and seal in place
 		buf[..plaintext.len()].copy_from_slice(plaintext);
-		self.seal(buf, plaintext.len(), ad, key, nonce)
+		chachapoly_seal(buf, plaintext.len(), ad, key, nonce);
+		Ok(plaintext.len() + CHACHAPOLY_TAG)
 	}
 	
 	fn open(&self, buf: &mut[u8], ciphertext_len: usize, ad: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input
-		if key.len() != 32 { Err(ChachaPolyError::ApiMisuse("Invalid key length"))? }
-		if nonce.len() != 12 { Err(ChachaPolyError::ApiMisuse("Invalid nonce length"))? }
-		
-		if ciphertext_len < 16 { Err(ChachaPolyError::InvalidData)? }
-		if ciphertext_len > CHACHAPOLY_MAX + 16 { Err(ChachaPolyError::InvalidData)? }
-		if ciphertext_len > buf.len() { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
+		// Verify input
+		vfy_open!(key, nonce, ciphertext_len => buf);
 		
 		// Open the data
 		chachapoly_open(buf, ciphertext_len, ad, key, nonce)?;
-		Ok(ciphertext_len - 16)
+		Ok(ciphertext_len - CHACHAPOLY_TAG)
 	}
 	fn open_to(&self, buf: &mut[u8], ciphertext: &[u8], ad: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input and copy ciphertext into buf and decrypt in place
-		if ciphertext.len() > buf.len() { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
+		// Verify input
+		vfy_open!(key, nonce, ciphertext => buf);
 		
+		// Copy the ciphertext into buf and decrypt in place
 		buf[..ciphertext.len()].copy_from_slice(ciphertext);
-		self.open(buf, ciphertext.len(), ad, key, nonce)
+		chachapoly_open(buf, ciphertext.len(), ad, key, nonce)?;
+		Ok(ciphertext.len() - CHACHAPOLY_TAG)
 	}
 }

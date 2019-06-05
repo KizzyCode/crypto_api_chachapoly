@@ -1,9 +1,14 @@
-use crate::ChachaPolyError;
 use crypto_api::{
 	mac::{ MacInfo, Mac },
 	rng::{ SecureRng, SecKeyGen }
 };
 use std::{ cmp::min, error::Error };
+
+
+/// The size of a Poly1305 key (256 bits/32 bytes)
+const POLY1305_KEY: usize = 32;
+/// The size of a ChaChaPoly authentication tag
+const POLY1305_TAG: usize = 16;
 
 
 /// Loads `key` into `r` and `s` and computes the key-based multipliers into `u`
@@ -132,11 +137,10 @@ impl Poly1305 {
 	}
 	
 	/// A helper function for the ChachaPoly-IETF AEAD construction
-	pub(in crate)
-	fn chachapoly_auth(tag: &mut[u8], ad: &[u8], data: &[u8], foot: &[u8], key: &[u8]) {
+	pub(in crate) fn chachapoly_auth(tag: &mut[u8], ad: &[u8], data: &[u8], foot: &[u8], key: &[u8])
+	{
 		// Init Poly1305
-		let (mut r, mut s, mut u, mut a) =
-			(vec![0; 5], vec![0; 4], vec![0; 5], vec![0; 5]);
+		let (mut r, mut s, mut u, mut a) = (vec![0; 5], vec![0; 4], vec![0; 5], vec![0; 5]);
 		poly1305_init(&mut r, &mut s, &mut u, key);
 		
 		// Process AD, data and the footer
@@ -150,23 +154,29 @@ impl SecKeyGen for Poly1305 {
 	fn new_sec_key(&self, buf: &mut[u8], rng: &mut SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Validate buffer and generate key
-		if buf.len() < 32 { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
-		rng.random(&mut buf[..32])?;
-		Ok(32)
+		// Verify input
+		vfy_keygen!(POLY1305_KEY => buf);
+		
+		// Generate key
+		rng.random(&mut buf[..POLY1305_KEY])?;
+		Ok(POLY1305_KEY)
 	}
 }
 impl Mac for Poly1305 {
 	fn info(&self) -> MacInfo {
-		MacInfo{ name: "Poly1305", is_otm: true, mac_len: 16, mac_len_r: 16..16, key_len_r: 32..32 }
+		MacInfo {
+			name: "Poly1305", is_otm: true,
+			mac_len: POLY1305_TAG,
+			mac_len_r: POLY1305_TAG..POLY1305_TAG,
+			key_len_r: POLY1305_KEY..POLY1305_KEY
+		}
 	}
 	
 	fn auth(&self, buf: &mut[u8], data: &[u8], key: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Validate input
-		if buf.len() < 16 { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
-		if key.len() != 32 { Err(ChachaPolyError::ApiMisuse("Invalid key length"))? }
+		// Verify input
+		vfy_auth!(key, => buf);
 		
 		// Authenticate data
 		let (mut r, mut s, mut u, mut a) =
@@ -175,6 +185,6 @@ impl Mac for Poly1305 {
 		poly1305_update(&mut a, &r, &u, data, true);
 		poly1305_finish(buf, &mut a, &mut s);
 		
-		Ok(16)
+		Ok(POLY1305_TAG)
 	}
 }
