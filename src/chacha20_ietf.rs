@@ -1,4 +1,3 @@
-use crate::ChachaPolyError;
 use crypto_api::{
 	cipher::{ CipherInfo, Cipher },
 	rng::{ SecureRng, SecKeyGen }
@@ -12,6 +11,11 @@ const CHACHA20_MAX: usize = 4_294_967_296 * 64; // 2^32 * BLOCK_SIZE
 /// The maximum amount of bytes that can be processed with one key/nonce combination
 #[cfg(target_pointer_width = "32")]
 const CHACHA20_MAX: usize = usize::max_value(); // 2^32 - 1
+
+/// The size of a ChaCha20 key (256 bits/32 bytes)
+const CHACHA20_KEY: usize = 32;
+/// The size of a ChaCha20 nonce (96 bits/12 bytes)
+const CHACHA20_NONCE: usize = 12;
 
 
 /// Computes the `n`th ChaCha20 block with `key` and `nonce` into `buf`
@@ -101,17 +105,21 @@ impl SecKeyGen for ChaCha20Ietf {
 	fn new_sec_key(&self, buf: &mut[u8], rng: &mut SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Validate buffer and generate key
-		if buf.len() < 32 { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
-		rng.random(&mut buf[..32])?;
-		Ok(32)
+		// Verify input
+		vfy_keygen!(CHACHA20_KEY => buf);
+		
+		// Generate key
+		rng.random(&mut buf[..CHACHA20_KEY])?;
+		Ok(CHACHA20_KEY)
 	}
 }
 impl Cipher for ChaCha20Ietf {
 	fn info(&self) -> CipherInfo {
 		CipherInfo {
 			name: "ChaCha20Ietf", is_otc: true,
-			key_len_r: 32..32, nonce_len_r: 12..12, aead_tag_len_r: 0..0
+			key_len_r: CHACHA20_KEY..CHACHA20_KEY,
+			nonce_len_r: CHACHA20_NONCE..CHACHA20_NONCE,
+			aead_tag_len_r: 0..0
 		}
 	}
 	
@@ -122,11 +130,8 @@ impl Cipher for ChaCha20Ietf {
 	fn encrypt(&self, buf: &mut[u8], plaintext_len: usize, key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input
-		if key.len() != 32 { Err(ChachaPolyError::ApiMisuse("Invalid key length"))? }
-		if nonce.len() != 12 { Err(ChachaPolyError::ApiMisuse("Invalid nonce length"))? }
-		if plaintext_len > CHACHA20_MAX { Err(ChachaPolyError::ApiMisuse("Too much data"))? }
-		if plaintext_len > buf.len() { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
+		// Verify input
+		vfy_enc!(key, nonce, plaintext_len => buf);
 		
 		// Encrypt the data
 		Self::xor(key, nonce, 0, &mut buf[..plaintext_len]);
@@ -135,11 +140,8 @@ impl Cipher for ChaCha20Ietf {
 	fn encrypt_to(&self, buf: &mut[u8], plaintext: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		// Check input
-		if key.len() != 32 { Err(ChachaPolyError::ApiMisuse("Invalid key length"))? }
-		if nonce.len() != 12 { Err(ChachaPolyError::ApiMisuse("Invalid nonce length"))? }
-		if plaintext.len() > CHACHA20_MAX { Err(ChachaPolyError::ApiMisuse("Too much data"))? }
-		if plaintext.len() > buf.len() { Err(ChachaPolyError::ApiMisuse("Buffer is too small"))? }
+		// Verify input
+		vfy_enc!(key, nonce, plaintext => buf);
 		
 		// Fill `buf` and encrypt the data in place
 		buf[..plaintext.len()].copy_from_slice(plaintext);
@@ -150,11 +152,22 @@ impl Cipher for ChaCha20Ietf {
 	fn decrypt(&self, buf: &mut[u8], ciphertext_len: usize, key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		self.encrypt(buf, ciphertext_len, key, nonce)
+		// Verify input
+		vfy_dec!(key, nonce, ciphertext_len => buf);
+		
+		// Encrypt the data
+		Self::xor(key, nonce, 0, &mut buf[..ciphertext_len]);
+		Ok(ciphertext_len)
 	}
 	fn decrypt_to(&self, buf: &mut[u8], ciphertext: &[u8], key: &[u8], nonce: &[u8])
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
-		self.encrypt_to(buf, ciphertext, key, nonce)
+		// Verify input
+		vfy_dec!(key, nonce, ciphertext => buf);
+		
+		// Fill `buf` and encrypt the data in place
+		buf[..ciphertext.len()].copy_from_slice(ciphertext);
+		Self::xor(key, nonce, 0, &mut buf[..ciphertext.len()]);
+		Ok(ciphertext.len())
 	}
 }
