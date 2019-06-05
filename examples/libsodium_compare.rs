@@ -1,59 +1,65 @@
 extern crate rand;
 extern crate sodiumoxide;
 
-use crypto_api_chachapoly::{ ChachaPolyIetf };
-use crypto_api::{ cipher::AeadCipher };
+use crypto_api_chachapoly::ChachaPolyIetf;
+use crypto_api::cipher::AeadCipher;
 use rand::Rng;
 use sodiumoxide::crypto::aead::chacha20poly1305_ietf;
 
+
 fn main() {
-    let chachapoly = ChachaPolyIetf { };
-
-    let mut rng = rand::thread_rng();
-    let mut test_count : u64 = 0;
-    loop {
-        let key = chacha20poly1305_ietf::gen_key();
-        let nonce = chacha20poly1305_ietf::gen_nonce();
-
-        let mut pt = vec![0u8; rng.gen_range(0, 65)];
-        rng.fill(pt.as_mut_slice());
-
-        let ad = {
-            if rng.gen_bool(0.5) {
-                pt.clone()
-            } else {
-                vec![0u8; 0]
-            }
-        };
-
-        let mut ct_ours = vec![0u8; pt.len() + 16];
-
-        chachapoly.seal_to(&mut ct_ours, &pt, &ad, key.as_ref(), nonce.as_ref()).unwrap();
-
-        let ct_sodium = chacha20poly1305_ietf::seal(
-            &pt,
-            if ad.len() > 0 { Some(&ad) } else { None },
-            &nonce,
-            &key
-        );
-
-        if ct_ours != ct_sodium {
-            println!("FAILURE! This library and libsodium don't match. Inputs:");
-            println!("Key: {:?}", key.as_ref());
-            println!("Nonce: {:?}", nonce.as_ref());
-            println!("Plaintext: {:?}", pt);
-            println!("Additional data: {:?}", ad);
-            println!("Outputs:");
-            println!("Ours: {:?}", ct_ours);
-            println!("Libsodium: {:?}", ct_sodium);
-            break;
-        }
-
-        test_count += 1;
-        let scale = 1000000;
-        if test_count % scale == 0 {
-            println!("Completed {}M tests.", test_count/scale);
-        }
-    }
-
+	let chachapoly = ChachaPolyIetf;
+	
+	let mut rng = rand::thread_rng();
+	let mut test_count = 0u64;
+	loop {
+		// Create random key and nonce
+		let key = chacha20poly1305_ietf::gen_key();
+		let nonce = chacha20poly1305_ietf::gen_nonce();
+		
+		// Create new random plaintext
+		let mut plaintext = vec![0u8; rng.gen_range(0, 65)];
+		rng.fill(plaintext.as_mut_slice());
+		
+		// Randomly use additional data
+		let ad: &[u8] = match rng.gen_bool(0.5) {
+			true => &plaintext,
+			false => b""
+		};
+		
+		// Seal the data using `crypto_api_chachapoly`
+		let mut ct_ours = vec![0u8; plaintext.len() + 16];
+		chachapoly.seal_to(
+			&mut ct_ours, &plaintext, ad,
+			key.as_ref(), nonce.as_ref()
+		).unwrap();
+		
+		// Seal the data using `sodiumoxide`
+		let ct_sodium = chacha20poly1305_ietf::seal(
+			&plaintext,
+			if ad.len() > 0 { Some(ad) } else { None },
+			&nonce, &key
+		);
+		
+		// Compare the data
+		if ct_ours != ct_sodium {
+			println!("FAILURE! This library and libsodium don't match. Inputs:");
+			println!("Key: {:?}", key.as_ref());
+			println!("Nonce: {:?}", nonce.as_ref());
+			println!("Plaintext: {:?}", plaintext);
+			println!("Additional data: {:?}", ad);
+			println!("Outputs:");
+			println!("Ours: {:?}", ct_ours);
+			println!("Libsodium: {:?}", ct_sodium);
+			break;
+		}
+		
+		// Track and print iterations
+		test_count += 1;
+		let scale = 1_000_000;
+		if test_count % scale == 0 {
+			println!("Completed {}M tests.", test_count/scale);
+		}
+	}
+	
 }
