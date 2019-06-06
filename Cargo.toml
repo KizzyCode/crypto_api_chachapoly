@@ -1,6 +1,6 @@
 [package]
 name = "crypto_api_chachapoly"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 authors = ["Keziah Biermann <development@kizzycode.de>"]
 description = "An implementation of ChaCha20-IETF, Poly1305 and ChachaPoly-IETF for `crypto_api`"
@@ -12,10 +12,13 @@ readme = "README.md"
 
 [dependencies]
 crypto_api = "0.2.2"
+rand = { version = "^0.6", optional = true }
+sodiumoxide = { version = "^0.2", optional = true }
 
-[dev-dependencies]
-rand = "0.6"
-sodiumoxide = "0.2.2"
+
+[features]
+default = []
+run_examples = ["rand", "sodiumoxide"]
 
 
 [profile.release]
