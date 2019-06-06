@@ -87,12 +87,26 @@ impl ChaCha20Ietf {
 	
 	/// XORs the bytes in `data` with the ChaCha20-keystream for `key` and `nonce` starting at the
 	/// `n`th block
-	pub(in crate) fn xor(key: &[u8], nonce: &[u8], mut n: u32, mut data: &mut[u8]) {
+	///
+	/// ## Warning:
+	/// This function panics if
+	///  - `key` is smaller or larger than `CHACHA20_KEY` (32 bytes/256 bits)
+	///  - `nonce` is smaller or larger than `CHACHA20_NONCE` (12 bytes/96 bits)
+	///  - `n` exceeds `2^32 - 1` (which means that `data` must be smaller than `(2^32 - n) * 64`)
+	///
+	/// __Consider using the `crypto_api`-interface instead of calling this function directly__
+	pub fn xor(key: &[u8], nonce: &[u8], mut n: u32, mut data: &mut[u8]) {
+		// Verify input
+		assert_eq!(CHACHA20_KEY, key.len());
+		assert_eq!(CHACHA20_NONCE, nonce.len());
+		
+		// XOR `data`
 		let mut buf = vec![0; 64];
 		while !data.is_empty() {
 			// Compute next block
 			chacha20(key, nonce, n, &mut buf);
-			n += 1;
+			n = n.checked_add(1)
+				.expect("The ChaCha20 block counter must not exceed 2^32 - 1");
 			
 			// Xor block
 			let to_xor = min(data.len(), buf.len());
