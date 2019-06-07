@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 #[macro_use] mod macros;
 #[macro_use] mod verify_input;
 mod chacha20_ietf;
