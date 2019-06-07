@@ -8,7 +8,7 @@ pub use crate::{ chacha20_ietf::ChaCha20Ietf, poly1305::Poly1305, chachapoly_iet
 pub use crypto_api;
 use std::{
 	error::Error,
-	fmt::{ Display, Formatter, Result as FmtResult }
+	fmt::{ self, Display, Formatter }
 };
 
 
@@ -21,7 +21,7 @@ pub enum ChachaPolyError {
 	ApiMisuse(&'static str)
 }
 impl Display for ChachaPolyError {
-	fn fmt(&self, f: &mut Formatter) -> FmtResult {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "{:?}", self)
 	}
 }
