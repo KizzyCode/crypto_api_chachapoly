@@ -1,6 +1,6 @@
 [package]
 name = "crypto_api_chachapoly"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2018"
 authors = ["Keziah Biermann <development@kizzycode.de>"]
 description = "An implementation of ChaCha20-IETF, Poly1305 and ChachaPoly-IETF for `crypto_api`"
@@ -10,9 +10,16 @@ repository = "https://github.com/KizzyCode/crypto_api_chachapoly"
 readme = "README.md"
 
 
+[badges]
+travis-ci = { repository = "KizzyCode/crypto_api_chachapoly" }
+appveyor = { repository = "KizzyCode/crypto_api_chachapoly" }
+maintenance = { status = "passively-maintained" }
+is-it-maintained-open-issues = { repository = "KizzyCode/crypto_api_chachapoly" }
+is-it-maintained-issue-resolution = { repository = "KizzyCode/crypto_api_chachapoly" }
+
+
 [dependencies]
 crypto_api = "^0.2"
-
 
 [dev-dependencies]
 json = "^0.12"

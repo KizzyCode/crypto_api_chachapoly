@@ -1,7 +1,11 @@
-[![License](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](https://opensource.org/licenses/BSD-2-Clause)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![docs.rs](https://docs.rs/crypto_api_chachapoly/badge.svg)](https://docs.rs/crypto_api_chachapoly)
+[![License BSD-2-Clause](https://img.shields.io/badge/License-BSD--2--Clause-blue.svg)](https://opensource.org/licenses/BSD-2-Clause)
+[![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![crates.io](https://img.shields.io/crates/v/crypto_api_chachapoly.svg)](https://crates.io/crates/crypto_api_chachapoly)
+[![Download numbers](https://img.shields.io/crates/d/crypto_api_chachapoly.svg)](https://crates.io/crates/crypto_api_chachapoly)
 [![Travis CI](https://travis-ci.org/KizzyCode/crypto_api_chachapoly.svg?branch=master)](https://travis-ci.org/KizzyCode/crypto_api_chachapoly)
 [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/github/KizzyCode/crypto_api_chachapoly?svg=true)](https://ci.appveyor.com/project/KizzyCode/crypto-api-chachapoly)
+[![dependency status](https://deps.rs/crate/crypto_api_chachapoly/0.3.0/status.svg)](https://deps.rs/crate/crypto_api_chachapoly/0.3.0)
 
 # crypto_api_chachapoly
 Welcome to `crypto_api_chachapoly` 🎉
@@ -15,10 +19,9 @@ This crate implements
 
 
 ## Security
-⚠️ Some words of warning ahead: This library is alpha and has not been audited yet – use at your
-own risk! ⚠️
+⚠️ Some words of warning ahead: This library has not been audited yet – use at your own risk! ⚠️
 
-However we try to do things right from the start – this library is
+However we try to do things right from the start – this library does not use unsafe Rust, is
 [KISS](https://en.wikipedia.org/wiki/KISS_principle), tested against various test vectors and uses
 constant time implementations only.
 
@@ -26,6 +29,14 @@ constant time implementations only.
 All implementations pass all reference test vectors and are assumed to produce correct results even
 in corner cases. We also use API test vectors (to test input validation) and failure test vectors to
 test our MAC verification.
+
+### Fuzzing Against [`sodiumoxide`](https://crates.io/crates/sodiumoxide)
+The git repository contains a `fuzz`-subcrate that generates random inputs and tests if this crate
+and [`sodiumoxide`](https://crates.io/crates/sodiumoxide) produce the same result.
+
+It can be run by cloning the git repo, going into "fuzz/" and running `cargo run --release`. The
+crate uses all available CPU threads and stops only if there is an unexpected different result. **If
+this happens to you, please copy the entire output and create a new issue on GitHub! 😊**
 
 ### Constant Time Implementations
 All implementations are designed to be invulnerable against timing side-channel attacks by
