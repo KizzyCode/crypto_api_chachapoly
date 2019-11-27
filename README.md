@@ -54,7 +54,3 @@ everything that happens on the heap and can take care of it accordingly.
 ## Dependencies
 Because this code implements the [`crypto_api`](https://github.com/KizzyCode/crypto_api), it depends
 on the `crypto_api`-crate. Otherwise, it's dependency less.
-
-(There are optional dependencies for[`rand`](https://crates.io/crates/rand) and
-[`sodiumoxide`](https://crates.io/crates/sodiumoxide) for the example which are only compiled if the
-feature `run_examples` is specified.)

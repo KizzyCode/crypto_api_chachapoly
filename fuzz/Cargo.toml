@@ -1,0 +1,13 @@
+[package]
+name = "fuzz"
+version = "0.1.0"
+authors = ["Keziah Biermann <development@kizzycode.de>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crypto_api_chachapoly = { path = "../" }
+crypto_api_osrandom = "^0.1"
+sodiumoxide = "^0.2"
+num_cpus = "^1.11"
