@@ -2,9 +2,18 @@ language: rust
 rust:
   - stable
 
-os:
-  - linux
-  - osx
+arch:
+  - amd64
+  - arm64
+
+matrix:
+  include:
+    - os: osx
+      arch: amd64
+    - os: linux
+      arch: amd64
+    - os: linux
+      arch: arm64
 
 compiler:
   - gcc
