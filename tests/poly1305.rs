@@ -1,75 +1,110 @@
-use crypto_api_chachapoly::{ ChachaPolyError, Poly1305 };
-include!("read_test_vectors.rs");
+mod shared;
+
+use shared::{ JsonValueExt, ResultExt };
+use crypto_api_chachapoly::Poly1305;
+use json::JsonValue;
 
 
+/// The test vectors
+const TEST_VECTORS: &str = include_str!("poly1305.json");
+
+
+/// A crypto test vector
 #[derive(Debug)]
-pub struct TestVector {
-	line: usize,
-	key___: Vec<u8>,
-	input_: Vec<u8>,
-	output: Vec<u8>
+struct CryptoTestVector {
+	name: String,
+	key: Vec<u8>,
+	data: Vec<u8>,
+	mac: Vec<u8>
 }
-impl TestVector {
-	pub fn test(&self) {
-		// Create the MAC instance
-		let mac = Poly1305::mac();
+impl CryptoTestVector {
+	/// Loads the test vectors
+	pub fn load() -> Vec<Self> {
+		let json = json::parse(TEST_VECTORS).unwrap();
+		let mut vecs = Vec::new();
+		for vec in json["crypto"].checked_array_iter() {
+			vecs.push(Self {
+				name: vec["name"].checked_string(),
+				key: vec["key"].checked_bytes(),
+				data: vec["data"].checked_bytes(),
+				mac: vec["mac"].checked_bytes()
+			});
+		}
+		vecs
+	}
+	
+	/// Tests the MAC computation
+	pub fn test_mac(&self) -> &Self {
+		// Compute mac
+		let mut buf = vec![0; self.mac.len()];
+		Poly1305::mac().auth(&mut buf, &self.data, &self.key).unwrap();
+		assert_eq!(buf, self.mac, "Test vector: \"{}\"", self.name);
 		
-		// Compute the tag
-		let mut buf = [0u8; 32];
-		let out_len = mac.auth(&mut buf, &self.input_, &self.key___).unwrap();
-		assert_eq!(self.output, &buf[..out_len], "@{} failed", self.line);
+		self
 	}
 }
 #[test]
-fn test() {
-	// Read test vectors
-	let vectors: Vec<TestVector> = read_test_vectors!(
-		"poly1305.txt"
-			=> TestVector{ line, key___, input_, output }
-	);
-	
-	// Test all vectors
-	for vector in vectors { vector.test() }
+fn test_crypto() {
+	for vec in CryptoTestVector::load() {
+		vec.test_mac();
+	}
 }
 
 
-#[derive(Debug)]
+/// An API test vector
+#[derive(Default, Clone, Debug)]
 pub struct ApiTestVector {
-	line: usize,
-	key_len___: usize,
-	input_len_: usize,
-	output_len: usize,
-	error_desc: &'static str
+	name: String,
+	key_len: usize,
+	data_len: usize,
+	buf_len: usize,
+	error: String
 }
 impl ApiTestVector {
-	pub fn test(&self) {
-		// Create the MAC instance
-		let mac = Poly1305::mac();
+	/// Loads the test vectors
+	pub fn load() -> Vec<Self> {
+		// Load the JSON and create the default struct
+		let json = json::parse(TEST_VECTORS).unwrap();
+		let mut defaults = Self::default();
+		defaults.load_json(&json["api"]["defaults"]);
 		
-		// Create fake inputs
-		let key = vec![0; self.key_len___];
-		let input = vec![0; self.input_len_];
-		let mut output = vec![0; self.output_len];
-		
-		// Compute the tag
-		let err = mac.auth(&mut output, &input, &key).unwrap_err();
-		match err.downcast_ref::<ChachaPolyError>() {
-			Some(ChachaPolyError::ApiMisuse(desc)) => assert_eq!(
-				*desc, self.error_desc,
-				"Invalid API-error description @{}", self.line
-			),
-			_ => panic!("Invalid error returned @{}", self.line)
+		// Load the test vectors
+		let mut vecs = Vec::new();
+		for vec in json["api"]["tests"].members() {
+			let mut this = defaults.clone();
+			this.load_json(vec);
+			vecs.push(this);
 		}
+		vecs
+	}
+	
+	/// Tests the MAC computation
+	pub fn test_mac(&self) -> &Self {
+		// Prepare fake inputs
+		let key = vec![0; self.key_len];
+		let data = vec![0; self.data_len];
+		let mut buf = vec![0; self.buf_len];
+		
+		// Compute MAC
+		let error = Poly1305::mac().auth(&mut buf, &data, &key)
+			.error_or(format!("Test vector: \"{}\"", self.name));
+		assert_eq!(error.to_string(), self.error, "Test vector: \"{}\"", self.name);
+		
+		self
+	}
+	
+	/// Loads all set fields in `j` into `self`
+	fn load_json(&mut self, j: &JsonValue) {
+		self.name = j["name"].optional_string(&self.name);
+		self.key_len = j["key_len"].optional_usize(self.key_len);
+		self.data_len = j["data_len"].optional_usize(self.data_len);
+		self.buf_len = j["buf_len"].optional_usize(self.buf_len);
+		self.error = j["error"].optional_string(&self.error);
 	}
 }
 #[test]
 fn test_api() {
-	// Read test vectors
-	let vectors: Vec<ApiTestVector> = read_test_vectors!(
-		"poly1305_api.txt"
-			=> ApiTestVector{ line, key_len___, input_len_, output_len, error_desc }
-	);
-	
-	// Test all vectors
-	for vector in vectors { vector.test() }
+	for vec in ApiTestVector::load() {
+		vec.test_mac();
+	}
 }

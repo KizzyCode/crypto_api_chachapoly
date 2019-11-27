@@ -11,14 +11,12 @@ readme = "README.md"
 
 
 [dependencies]
-crypto_api = "0.2.2"
-rand = { version = "^0.6", optional = true }
-sodiumoxide = { version = "^0.2", optional = true }
+crypto_api = "^0.2"
 
 
-[features]
-default = []
-run_examples = ["rand", "sodiumoxide"]
+[dev-dependencies]
+json = "^0.12"
+hex = "^0.4"
 
 
 [profile.release]

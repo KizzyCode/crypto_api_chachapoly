@@ -1,101 +1,173 @@
-use crypto_api_chachapoly::{ ChachaPolyError, ChaCha20Ietf };
-include!("read_test_vectors.rs");
+mod shared;
+
+use shared::{ JsonValueExt, ResultExt };
+use crypto_api_chachapoly::ChaCha20Ietf;
+use json::JsonValue;
 
 
+/// The test vectors
+const TEST_VECTORS: &str = include_str!("chacha20_ietf.json");
+
+
+/// A crypto test vector
 #[derive(Debug)]
-pub struct TestVector {
-	line: usize,
-	key___: Vec<u8>,
-	nonce_: Vec<u8>,
-	input_: Vec<u8>,
-	output: Vec<u8>
+struct CryptoTestVector {
+	name: String,
+	key: Vec<u8>,
+	nonce: Vec<u8>,
+	plaintext: Vec<u8>,
+	ciphertext: Vec<u8>
 }
-impl TestVector {
-	pub fn test(&self) {
-		// Create the cipher instance
-		let cipher = ChaCha20Ietf::cipher();
-		
-		// Encrypt the data
-		let mut buf = vec![0; self.output.len()];
-		let out_len = cipher
-			.encrypt_to(&mut buf, &self.input_, &self.key___, &self.nonce_)
+impl CryptoTestVector {
+	/// Loads the test vectors
+	pub fn load() -> Vec<Self> {
+		let json = json::parse(TEST_VECTORS).unwrap();
+		let mut vecs = Vec::new();
+		for vec in json["crypto"].checked_array_iter() {
+			vecs.push(Self {
+				name: vec["name"].checked_string(),
+				key: vec["key"].checked_bytes(),
+				nonce: vec["nonce"].checked_bytes(),
+				plaintext: vec["plaintext"].checked_bytes(),
+				ciphertext: vec["ciphertext"].checked_bytes(),
+			});
+		}
+		vecs
+	}
+	
+	/// Tests the encryption
+	pub fn test_encryption(&self) -> &Self {
+		// Encrypt in place
+		let mut buf = self.plaintext.clone();
+		ChaCha20Ietf::cipher()
+			.encrypt(&mut buf, self.plaintext.len(), &self.key, &self.nonce)
 			.unwrap();
-		assert_eq!(self.output, &buf[..out_len], "@{} failed", self.line);
+		assert_eq!(buf, self.ciphertext, "Test vector: \"{}\"", self.name);
 		
-		// Decrypt the data
-		let mut buf = vec![0; self.input_.len()];
-		let out_len = cipher
-			.decrypt_to(&mut buf, &self.output, &self.key___, &self.nonce_)
+		// Encrypt to buffer
+		let mut buf = vec![0; self.ciphertext.len()];
+		ChaCha20Ietf::cipher()
+			.encrypt_to(&mut buf, &self.plaintext, &self.key, &self.nonce)
 			.unwrap();
-		assert_eq!(self.input_, &buf[..out_len], "@{} failed", self.line);
+		assert_eq!(buf, self.ciphertext, "Test vector: \"{}\"", self.name);
+		
+		self
+	}
+	
+	/// Tests the decryption
+	pub fn test_decryption(&self) -> &Self {
+		// Decrypt in place
+		let mut buf = self.ciphertext.clone();
+		ChaCha20Ietf::cipher()
+			.decrypt(&mut buf, self.ciphertext.len(), &self.key, &self.nonce)
+			.unwrap();
+		assert_eq!(buf, self.plaintext, "Test vector: \"{}\"", self.name);
+		
+		// Decrypt to buffer
+		let mut buf = vec![0; self.plaintext.len()];
+		ChaCha20Ietf::cipher()
+			.decrypt_to(&mut buf, &self.ciphertext, &self.key, &self.nonce)
+			.unwrap();
+		assert_eq!(buf, self.plaintext, "Test vector: \"{}\"", self.name);
+		
+		self
 	}
 }
 #[test]
-fn test() {
-	// Read test vectors
-	let vectors: Vec<TestVector> = read_test_vectors!(
-		"chacha20_ietf.txt"
-			=> TestVector{ line, key___, nonce_, input_, output }
-	);
-	
-	// Test all vectors
-	for vector in vectors { vector.test() }
+fn test_crypto() {
+	for vec in CryptoTestVector::load() {
+		vec.test_encryption().test_decryption();
+	}
 }
 
 
-#[derive(Debug)]
+/// An API test vector
+#[derive(Default, Clone, Debug)]
 pub struct ApiTestVector {
-	line: usize,
-	key_len___: usize,
-	nonce_len_: usize,
-	input_len_: usize,
-	output_len: usize,
-	error_desc: &'static str
+	name: String,
+	key_len: usize,
+	nonce_len: usize,
+	enc_input_len: usize,
+	enc_buf_len: usize,
+	dec_input_len: usize,
+	dec_buf_len: usize,
+	error: String
 }
 impl ApiTestVector {
-	pub fn test(&self) {
-		// Create the cipher instance
-		let cipher = ChaCha20Ietf::cipher();
-	
-		// Generate fake inputs
-		let key = vec![0; self.key_len___];
-		let nonce = vec![0; self.nonce_len_];
-		let input = vec![0; self.input_len_];
-		let mut buf = vec![0; self.output_len];
+	/// Loads the test vectors
+	pub fn load() -> Vec<Self> {
+		// Load the JSON and create the default struct
+		let json = json::parse(TEST_VECTORS).unwrap();
+		let mut defaults = Self::default();
+		defaults.load_json(&json["api"]["defaults"]);
 		
-		// Helper to check the error
-		macro_rules! test_err {
-			($fn:expr => $call:expr) => ({
-				let result = $call
-					.expect_err(&format!("`{}`: Unexpected success @{}", $fn, self.line));
-				
-				match result.downcast_ref::<ChachaPolyError>() {
-					Some(ChachaPolyError::ApiMisuse(desc)) => assert_eq!(
-						*desc, self.error_desc,
-						"`{}`: Invalid API-error description @{}", $fn, self.line
-					),
-					_ => panic!("`{}`: Invalid error returned @{}", $fn, self.line)
-				}
-			});
+		// Load the test vectors
+		let mut vecs = Vec::new();
+		for vec in json["api"]["tests"].members() {
+			let mut this = defaults.clone();
+			this.load_json(vec);
+			vecs.push(this);
 		}
+		vecs
+	}
+	
+	/// Tests the encryption
+	pub fn test_encryption(&self) -> &Self {
+		// Prepare fake inputs
+		let key = vec![0; self.key_len];
+		let nonce = vec![0; self.nonce_len];
+		let input = vec![0; self.enc_input_len];
+		let mut buf = vec![0; self.enc_buf_len];
 		
-		// Test `encrypt` and `encrypt_to`
-		test_err!("encrypt" => cipher.encrypt(&mut buf, input.len(), &key, &nonce));
-		test_err!("encrypt_to" => cipher.encrypt_to(&mut buf, &input, &key, &nonce));
+		// Encrypt in place
+		let error = ChaCha20Ietf::cipher().encrypt(&mut buf, input.len(), &key, &nonce)
+			.error_or(format!("Test vector: \"{}\"", self.name));
+		assert_eq!(error.to_string(), self.error, "Test vector: \"{}\"", self.name);
 		
-		// Test `decrypt` and `decrypt_to`
-		test_err!("decrypt" => cipher.decrypt(&mut buf, input.len(), &key, &nonce));
-		test_err!("decrypt_to" => cipher.decrypt_to(&mut buf, &input, &key, &nonce));
+		// Encrypt in buffer
+		let error = ChaCha20Ietf::cipher().encrypt_to(&mut buf, &input, &key, &nonce)
+			.error_or(format!("Test vector: \"{}\"", self.name));
+		assert_eq!(error.to_string(), self.error, "Test vector: \"{}\"", self.name);
+		
+		self
+	}
+	
+	/// Tests the decryption
+	pub fn test_decryption(&self) -> &Self {
+		// Prepare fake inputs
+		let key = vec![0; self.key_len];
+		let nonce = vec![0; self.nonce_len];
+		let input = vec![0; self.dec_input_len];
+		let mut buf = vec![0; self.dec_buf_len];
+		
+		// Decrypt in place
+		let error = ChaCha20Ietf::cipher().decrypt(&mut buf, input.len(), &key, &nonce)
+			.error_or(format!("Test vector: \"{}\"", self.name));
+		assert_eq!(error.to_string(), self.error, "Test vector: \"{}\"", self.name);
+		
+		// Decrypt in buffer
+		let error = ChaCha20Ietf::cipher().decrypt_to(&mut buf, &input, &key, &nonce)
+			.error_or(format!("Test vector: \"{}\"", self.name));
+		assert_eq!(error.to_string(), self.error, "Test vector: \"{}\"", self.name);
+		
+		self
+	}
+	
+	/// Loads all existing/non-null fields from `j` into `self`
+	fn load_json(&mut self, j: &JsonValue) {
+		self.name = j["name"].optional_string(&self.name);
+		self.key_len = j["key_len"].optional_usize(self.key_len);
+		self.nonce_len = j["nonce_len"].optional_usize(self.nonce_len);
+		self.enc_input_len = j["enc_input_len"].optional_usize(self.enc_input_len);
+		self.enc_buf_len = j["enc_buf_len"].optional_usize(self.enc_buf_len);
+		self.dec_input_len = j["dec_input_len"].optional_usize(self.dec_input_len);
+		self.dec_buf_len = j["dec_buf_len"].optional_usize(self.dec_buf_len);
+		self.error = j["error"].optional_string(&self.error);
 	}
 }
 #[test]
 fn test_api() {
-	// Read test vectors
-	let vectors: Vec<ApiTestVector> = read_test_vectors!(
-		"chacha20_ietf_api.txt"
-			=> ApiTestVector{ line, key_len___, nonce_len_, input_len_, output_len, error_desc }
-	);
-	
-	// Test all vectors
-	for vector in vectors { vector.test() }
+	for vec in ApiTestVector::load() {
+		vec.test_encryption().test_decryption();
+	}
 }
