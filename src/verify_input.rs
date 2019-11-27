@@ -123,7 +123,7 @@ macro_rules! vfy_seal {
 ///    authentication tag
 ///  - `$buf` is large enough to hold the **encrypted** ciphertext (copy and authenticate and
 ///    decrypt-in-place workflow)
-macro_rules! vfy_open {
+macro_rules! vfy_open_in_place {
 	($key:expr, $nonce:expr, $ciphertext:expr => $buf:expr) => ({
 		#[allow(unused_imports)]
 		use $crate::verify_input::{ UsizeExt, SliceExt };
@@ -134,6 +134,30 @@ macro_rules! vfy_open {
 			_ if $ciphertext._cv() > CHACHAPOLY_MAX => Err("Too much data"),
 			_ if $ciphertext._cv() < CHACHAPOLY_TAG => Err($crate::ChachaPolyError::InvalidData)?,
 			_ if $buf._cv() < $ciphertext._cv() => Err("Buffer is too small"),
+			_ => Ok(())
+		};
+		error.map_err(|e| $crate::ChachaPolyError::ApiMisuse(e))?;
+	})
+}
+
+
+/// Verifies that
+///  - `$key` has the same size as `CHACHAPOLY_KEY` (32 bytes)
+///  - `nonce` has the same size as `CHACHAPOLY_NONCE` (12 bytes)
+///  - `$ciphertext` is not larger that the maximum plaintext limit and smaller than an
+///    authentication tag
+///  - `$buf` is large enough to either hold the decrypted ciphertext
+macro_rules! vfy_open_copy {
+	($key:expr, $nonce:expr, $ciphertext:expr => $buf:expr) => ({
+		#[allow(unused_imports)]
+		use $crate::verify_input::{ UsizeExt, SliceExt };
+	
+		let error = match true {
+			_ if $key._cv() != CHACHAPOLY_KEY => Err("Invalid key length"),
+			_ if $nonce._cv() != CHACHAPOLY_NONCE => Err("Invalid nonce length"),
+			_ if $ciphertext._cv() > CHACHAPOLY_MAX => Err("Too much data"),
+			_ if $ciphertext._cv() < CHACHAPOLY_TAG => Err($crate::ChachaPolyError::InvalidData)?,
+			_ if $buf._cv() + CHACHAPOLY_TAG < $ciphertext._cv() => Err("Buffer is too small"),
 			_ => Ok(())
 		};
 		error.map_err(|e| $crate::ChachaPolyError::ApiMisuse(e))?;

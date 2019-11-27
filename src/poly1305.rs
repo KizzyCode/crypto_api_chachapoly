@@ -151,7 +151,7 @@ impl Poly1305 {
 	}
 }
 impl SecKeyGen for Poly1305 {
-	fn new_sec_key(&self, buf: &mut[u8], rng: &mut SecureRng)
+	fn new_sec_key(&self, buf: &mut[u8], rng: &mut dyn SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
 		// Verify input
@@ -179,11 +179,10 @@ impl Mac for Poly1305 {
 		vfy_auth!(key, => buf);
 		
 		// Authenticate data
-		let (mut r, mut s, mut u, mut a) =
-			(vec![0; 5], vec![0; 4], vec![0; 5], vec![0; 5]);
+		let (mut r, mut s, mut u, mut a) = (vec![0; 5], vec![0; 4], vec![0; 5], vec![0; 5]);
 		poly1305_init(&mut r, &mut s, &mut u, key);
 		poly1305_update(&mut a, &r, &u, data, true);
-		poly1305_finish(buf, &mut a, &mut s);
+		poly1305_finish(buf, &mut a, &s);
 		
 		Ok(POLY1305_TAG)
 	}

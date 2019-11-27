@@ -85,13 +85,13 @@ impl ChaCha20Ietf {
 		Box::new(Self)
 	}
 	
-	/// XORs the bytes in `data` with the ChaCha20-keystream for `key` and `nonce` starting at the
+	/// XORs the bytes in `data` with the ChaCha20 keystream for `key` and `nonce` starting at the
 	/// `n`th block
 	///
 	/// ## Warning:
 	/// This function panics if
-	///  - `key` is smaller or larger than `CHACHA20_KEY` (32 bytes/256 bits)
-	///  - `nonce` is smaller or larger than `CHACHA20_NONCE` (12 bytes/96 bits)
+	///  - `key` is smaller or larger than 32 bytes/256 bits
+	///  - `nonce` is smaller or larger than 12 bytes/96 bits
 	///  - `n` exceeds `2^32 - 1` (which means that `data` must be smaller than `(2^32 - n) * 64`)
 	///
 	/// __Consider using the `crypto_api`-interface instead of calling this function directly__
@@ -116,7 +116,7 @@ impl ChaCha20Ietf {
 	}
 }
 impl SecKeyGen for ChaCha20Ietf {
-	fn new_sec_key(&self, buf: &mut[u8], rng: &mut SecureRng)
+	fn new_sec_key(&self, buf: &mut[u8], rng: &mut dyn SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
 		// Verify input
