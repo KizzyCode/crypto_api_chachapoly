@@ -11,3 +11,16 @@ crypto_api_chachapoly = { path = "../" }
 crypto_api_osrandom = "^0.1"
 sodiumoxide = "^0.2"
 num_cpus = "^1.11"
+hex = "^0.4"
+
+
+[profile.dev]
+overflow-checks = true
+panic = "abort"
+
+[profile.release]
+overflow-checks = true
+panic = "abort"
+
+[profile.bench]
+overflow-checks = true

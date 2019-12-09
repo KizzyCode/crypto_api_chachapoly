@@ -61,49 +61,43 @@ pub fn hchacha20_hash(key: &[u8], nonce: &[u8], buf: &mut[u8]) {
 
 /// Computes the `n`th ChaCha20-IETF block with `key` and `nonce` into `buf`
 pub fn chacha20_ietf_block(key: &[u8], nonce: &[u8], n: u32, buf: &mut[u8]) {
-	// Read key and nonce
-	let mut key_words = vec![0; 8];
-	(0..8).for_each(|i| key_words[i] = read32_le!(&key[i * 4..]));
+	// Create state buffer
+	let mut state = vec![0u32; 32];
+	let (init, mixed) = state.split_at_mut(16);
 	
-	let mut nonce_words = vec![0; 3];
-	(0..3).for_each(|i| nonce_words[i] = read32_le!(&nonce[i * 4..]));
+	// Init state
+	( 0.. 4).for_each(|i| init[i] = CONSTANTS[i]);
+	( 4..12).for_each(|i| init[i] = read32_le!(  &key[(i -  4) * 4..]));
+	init[12] = n;
+	(13..16).for_each(|i| init[i] = read32_le!(&nonce[(i - 13) * 4..]));
 	
-	// Initialize and compute block
-	let mut state = vec![0u32; 16];
-	state[ 0.. 4].copy_from_slice(&CONSTANTS);
-	state[ 4..12].copy_from_slice(&key_words);
-	state[12] = n;
-	state[13..16].copy_from_slice(&nonce_words);
-	chacha20_rounds(&mut state);
+	// Mix state
+	mixed.copy_from_slice(init);
+	chacha20_rounds(mixed);
 	
-	// Finalize block
-	( 0.. 4).for_each(|i| write32_le!(add!(state[i],   CONSTANTS[i     ]) => &mut buf[i * 4..]));
-	( 4..12).for_each(|i| write32_le!(add!(state[i],   key_words[i -  4]) => &mut buf[i * 4..]));
-	write32_le!(add!(state[12], n) => &mut buf[48..]);
-	(13..16).for_each(|i| write32_le!(add!(state[i], nonce_words[i - 13]) => &mut buf[i * 4..]));
+	// Add init state to mixed state and write the mixed state to the buffer
+	( 0..16).for_each(|i| mixed[i] = add!(mixed[i], init[i]));
+	( 0..16).for_each(|i| write32_le!(mixed[i] => &mut buf[i * 4..]));
 }
 
 
 /// Computes the `n`th ChaCha20 block with `key` and `nonce` into `buf`
 pub fn chacha20_block(key: &[u8], nonce: &[u8], n: u64, buf: &mut[u8]) {
-	// Read key and nonce
-	let mut key_words = vec![0; 8];
-	(0..8).for_each(|i| key_words[i] = read32_le!(&key[i * 4..]));
+	// Create state buffer
+	let mut state = vec![0u32; 32];
+	let (init, mixed) = state.split_at_mut(16);
 	
-	let mut nonce_words = vec![0; 2];
-	(0..2).for_each(|i| nonce_words[i] = read32_le!(&nonce[i * 4..]));
+	// Init state
+	( 0.. 4).for_each(|i| init[i] = CONSTANTS[i]);
+	( 4..12).for_each(|i| init[i] = read32_le!(  &key[(i -  4) * 4..]));
+	split64_le!(n => &mut init[12..]);
+	(14..16).for_each(|i| init[i] = read32_le!(&nonce[(i - 14) * 4..]));
 	
-	// Initialize and compute block
-	let mut state = vec![0u32; 16];
-	state[ 0.. 4].copy_from_slice(&CONSTANTS);
-	state[ 4..12].copy_from_slice(&key_words);
-	split64_le!(n => &mut state[12..]);
-	state[14..16].copy_from_slice(&nonce_words);
-	chacha20_rounds(&mut state);
+	// Mix state
+	mixed.copy_from_slice(init);
+	chacha20_rounds(mixed);
 	
-	// Finalize block
-	( 0.. 4).for_each(|i| write32_le!(add!(state[i],   CONSTANTS[i     ]) => &mut buf[i * 4..]));
-	( 4..12).for_each(|i| write32_le!(add!(state[i],   key_words[i -  4]) => &mut buf[i * 4..]));
-	write64_le!(add!(combine32_le!(&state[12..]), n) => &mut buf[48..]);
-	(14..16).for_each(|i| write32_le!(add!(state[i], nonce_words[i - 14]) => &mut buf[i * 4..]));
+	// Add init state to mixed state and write the mixed state to the buffer
+	( 0..16).for_each(|i| mixed[i] = add!(mixed[i], init[i]));
+	( 0..16).for_each(|i| write32_le!(mixed[i] => &mut buf[i * 4..]));
 }

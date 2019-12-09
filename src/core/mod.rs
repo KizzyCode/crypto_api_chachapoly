@@ -95,15 +95,6 @@
 	});
 }
 
-/// Combines two little endian `u32`s to a little endian `u64`
-#[doc(hidden)] #[macro_export] macro_rules! combine32_le {
-	($u32s:expr) => ({
-		or!(
-			shl!($u32s[0] as u64,  0),
-			shl!($u32s[1] as u64, 32)
-		)
-	});
-}
 /// Splits a little endian `u64` into two little endian `u32`s
 #[doc(hidden)] #[macro_export] macro_rules! split64_le {
 	($num:expr => $u32s:expr) => ({

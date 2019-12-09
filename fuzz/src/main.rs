@@ -1,6 +1,7 @@
 use crypto_api_chachapoly::{ ChachaPolyIetf, XChachaPoly, crypto_api::cipher::AeadCipher };
 use crypto_api_osrandom::{ OsRandom, crypto_api::rng::SecureRng };
 use sodiumoxide::crypto::aead::{ chacha20poly1305_ietf, xchacha20poly1305_ietf };
+use hex::ToHex;
 use std::{
 	env, thread, error::Error, ops::Range, str::FromStr, time::Duration,
 	sync::atomic::{ AtomicU64, Ordering::Relaxed }
@@ -89,13 +90,13 @@ impl ChachaPolyIetfTV {
 		// Compare the data
 		if ct_ours != ct_sodium {
 			eprintln!("ChachaPoly Mismatch!. Inputs:");
-			eprintln!("Key: {:?}", self.key.as_ref());
-			eprintln!("Nonce: {:?}", self.nonce.as_ref());
-			eprintln!("Plaintext: {:?}", self.plaintext);
-			eprintln!("Additional data: {:?}", self.ad);
+			eprintln!("Key: {}", self.key.as_ref().encode_hex::<String>());
+			eprintln!("Nonce: {}", self.nonce.as_ref().encode_hex::<String>());
+			eprintln!("Plaintext: {}", self.plaintext.encode_hex::<String>());
+			eprintln!("Additional data: {}", self.ad.encode_hex::<String>());
 			eprintln!("Outputs:");
-			eprintln!("Ours: {:?}", ct_ours);
-			eprintln!("Libsodium: {:?}", ct_sodium);
+			eprintln!("Ours: {}", ct_ours.encode_hex::<String>());
+			eprintln!("Libsodium: {}", ct_sodium.encode_hex::<String>());
 			panic!("... aborting. Please save and report this error!");
 		}
 		COUNTER.fetch_add(1, Relaxed);
@@ -140,13 +141,13 @@ impl XChachaPolyTV {
 		// Compare the data
 		if ct_ours != ct_sodium {
 			eprintln!("XChachaPoly Mismatch!. Inputs:");
-			eprintln!("Key: {:?}", self.key.as_ref());
-			eprintln!("Nonce: {:?}", self.nonce.as_ref());
-			eprintln!("Plaintext: {:?}", self.plaintext);
-			eprintln!("Additional data: {:?}", self.ad);
+			eprintln!("Key: {}", self.key.as_ref().encode_hex::<String>());
+			eprintln!("Nonce: {}", self.nonce.as_ref().encode_hex::<String>());
+			eprintln!("Plaintext: {}", self.plaintext.encode_hex::<String>());
+			eprintln!("Additional data: {}", self.ad.encode_hex::<String>());
 			eprintln!("Outputs:");
-			eprintln!("Ours: {:?}", ct_ours);
-			eprintln!("Libsodium: {:?}", ct_sodium);
+			eprintln!("Ours: {}", ct_ours.encode_hex::<String>());
+			eprintln!("Libsodium: {}", ct_sodium.encode_hex::<String>());
 			panic!("... aborting. Please save and report this error!");
 		}
 		COUNTER.fetch_add(1, Relaxed);
@@ -156,12 +157,16 @@ impl XChachaPolyTV {
 
 /// Fuzz it!
 fn main() {
+	// Load the amount of threads from the environment
+	let threads_str = env::var("THREADS").unwrap_or(num_cpus::get().to_string());
+	let threads = usize::from_str(&threads_str).expect("Invalid value of THREADS");
+	
 	// Load the limit from environment
 	let limit_str = env::var("TEST_VECTOR_LIMIT").unwrap_or(264.to_string());
-	let limit = usize::from_str(&limit_str).expect("Invalid TEST_VECTOR_LIMIT");
+	let limit = usize::from_str(&limit_str).expect("Invalid value of TEST_VECTOR_LIMIT");
 	
 	// Start fuzzing threads
-	for _ in 0..num_cpus::get() {
+	for _ in 0 .. threads {
 		thread::spawn(move || loop {
 			ChachaPolyIetfTV::random(limit).test();
 			XChachaPolyTV::random(limit).test()
