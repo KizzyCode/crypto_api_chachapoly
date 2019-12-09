@@ -2,7 +2,7 @@ use crypto_api_chachapoly::{ ChachaPolyIetf, XChachaPoly, crypto_api::cipher::Ae
 use crypto_api_osrandom::{ OsRandom, crypto_api::rng::SecureRng };
 use sodiumoxide::crypto::aead::{ chacha20poly1305_ietf, xchacha20poly1305_ietf };
 use std::{
-	thread, error::Error, ops::Range, time::Duration,
+	env, thread, error::Error, ops::Range, str::FromStr, time::Duration,
 	sync::atomic::{ AtomicU64, Ordering::Relaxed }
 };
 
@@ -60,16 +60,13 @@ struct ChachaPolyIetfTV {
 	ad: Vec<u8>
 }
 impl ChachaPolyIetfTV {
-	const PLAINTEXT_R: Range<usize> = 0..264;
-	const AD_R: Range<usize> = 0..264;
-	
 	/// Creates a random test vector
-	pub fn random() -> Self {
+	pub fn random(limit: usize) -> Self {
 		Self {
 			key: chacha20poly1305_ietf::gen_key(),
 			nonce: chacha20poly1305_ietf::gen_nonce(),
-			plaintext: OsRandom.random_len_vec(Self::PLAINTEXT_R).unwrap(),
-			ad: OsRandom.random_len_vec(Self::AD_R).unwrap()
+			plaintext: OsRandom.random_len_vec(0..limit).unwrap(),
+			ad: OsRandom.random_len_vec(0..limit).unwrap()
 		}
 	}
 	
@@ -114,16 +111,13 @@ struct XChachaPolyTV {
 	ad: Vec<u8>
 }
 impl XChachaPolyTV {
-	const PLAINTEXT_R: Range<usize> = 0..264;
-	const AD_R: Range<usize> = 0..264;
-	
 	/// Creates a random test vector
-	pub fn random() -> Self {
+	pub fn random(limit: usize) -> Self {
 		Self {
 			key: xchacha20poly1305_ietf::gen_key(),
 			nonce: xchacha20poly1305_ietf::gen_nonce(),
-			plaintext: OsRandom.random_len_vec(Self::PLAINTEXT_R).unwrap(),
-			ad: OsRandom.random_len_vec(Self::AD_R).unwrap()
+			plaintext: OsRandom.random_len_vec(0..limit).unwrap(),
+			ad: OsRandom.random_len_vec(0..limit).unwrap()
 		}
 	}
 	
@@ -162,14 +156,22 @@ impl XChachaPolyTV {
 
 /// Fuzz it!
 fn main() {
+	// Load the limit from environment
+	let limit_str = env::var("TEST_VECTOR_LIMIT").unwrap_or(264.to_string());
+	let limit = usize::from_str(&limit_str).expect("Invalid TEST_VECTOR_LIMIT");
+	
+	// Start fuzzing threads
 	for _ in 0..num_cpus::get() {
-		thread::spawn(|| loop {
-			ChachaPolyIetfTV::random().test();
-			XChachaPolyTV::random().test()
+		thread::spawn(move || loop {
+			ChachaPolyIetfTV::random(limit).test();
+			XChachaPolyTV::random(limit).test()
 		});
 	}
+	
+	// Print progress
+	println!("Starting fuzzing [TEST_VECTOR_LIMIT is {} bytes]...", limit);
 	loop {
 		thread::sleep(Duration::from_secs(5));
-		println!("Performed {} iterations...", COUNTER.load(Relaxed));
+		println!("Performed {} tests...", COUNTER.load(Relaxed));
 	}
 }
