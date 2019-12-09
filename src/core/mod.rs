@@ -95,6 +95,23 @@
 	});
 }
 
+/// Combines two little endian `u32`s to a little endian `u64`
+#[doc(hidden)] #[macro_export] macro_rules! combine32_le {
+	($u32s:expr) => ({
+		or!(
+			shl!($u32s[0] as u64,  0),
+			shl!($u32s[1] as u64, 32)
+		)
+	});
+}
+/// Splits a little endian `u64` into two little endian `u32`s
+#[doc(hidden)] #[macro_export] macro_rules! split64_le {
+	($num:expr => $u32s:expr) => ({
+		$u32s[0] = shr!($num,  0) as u32;
+		$u32s[1] = shr!($num, 32) as u32;
+	});
+}
+
 /// Compares `$a` and `$b` in constant time if they have the same size
 #[macro_export] macro_rules! eq_ct {
 	($a:expr, $b:expr) => ({
@@ -108,3 +125,9 @@
 		}
 	});
 }
+
+
+/// The ChaCha20 core implementation
+pub mod chacha20;
+/// The Poly1305 core implementation
+pub mod poly1305;

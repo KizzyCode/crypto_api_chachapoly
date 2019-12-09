@@ -1,4 +1,7 @@
-use crate::core::chacha20::chacha20_ietf_block;
+use crate::{
+	chacha20_ietf::CHACHA20_KEY,
+	core::chacha20::{ hchacha20_hash, chacha20_block }
+};
 use crypto_api::{
 	cipher::{ CipherInfo, Cipher },
 	rng::{ SecureRng, SecKeyGen }
@@ -6,49 +9,50 @@ use crypto_api::{
 use std::{ cmp::min, error::Error };
 
 
-/// The maximum amount of bytes that can be processed with one key/nonce combination
-#[cfg(target_pointer_width = "64")]
-pub const CHACHA20_MAX: usize = 4_294_967_296 * 64; // 2^32 * BLOCK_SIZE
-/// The maximum amount of bytes that can be processed with one key/nonce combination
-#[cfg(target_pointer_width = "32")]
-pub const CHACHA20_MAX: usize = usize::max_value(); // 2^32 - 1
+/// The maximum amount of bytes that can be processed by this implementation with one key/nonce
+/// combination
+pub const XCHACHA20_MAX: usize = usize::max_value();
+
+/// The size of a XChaCha20 key (256 bits/32 bytes)
+pub const XCHACHA20_KEY: usize = CHACHA20_KEY;
+/// The size of a XChaCha20 nonce (192 bits/24 bytes)
+pub const XCHACHA20_NONCE: usize = 24;
 
 
-/// The size of a ChaCha20 key (256 bits/32 bytes)
-pub const CHACHA20_KEY: usize = 32;
-/// The size of a ChaCha20 nonce (96 bits/12 bytes)
-pub const CHACHA20_NONCE: usize = 12;
-
-
-/// An implementation of [ChaCha20 (IETF-version)](https://tools.ietf.org/html/rfc8439)
-pub struct ChaCha20Ietf;
-impl ChaCha20Ietf {
-	/// Creates a `Cipher` instance with `ChaCha20Ietf` as underlying cipher
+/// An implementation of XChaCha20
+pub struct XChaCha20;
+impl XChaCha20 {
+	/// Creates a `Cipher` instance with `XChaCha20` as underlying cipher
 	pub fn cipher() -> Box<dyn Cipher> {
 		Box::new(Self)
 	}
 	
-	/// XORs the bytes in `data` with the ChaCha20 keystream for `key` and `nonce` starting at the
+	/// XORs the bytes in `data` with the XChaCha20 keystream for `key` and `nonce` starting at the
 	/// `n`th block
 	///
 	/// ## Warning:
 	/// This function panics if
 	///  - `key` is smaller or larger than 32 bytes/256 bits
-	///  - `nonce` is smaller or larger than 12 bytes/96 bits
-	///  - `n` exceeds `2^32 - 1` (which means that `data` must be smaller than `(2^32 - n) * 64`)
+	///  - `nonce` is smaller or larger than 24 bytes/192 bits
+	///  - `n` exceeds `2^64 - 1` (which means that `data` must be smaller than `(2^64 - n) * 64`)
 	///
 	/// __Consider using the `crypto_api`-interface instead of calling this function directly__
-	pub fn xor(key: &[u8], nonce: &[u8], mut n: u32, mut data: &mut[u8]) {
+	pub fn xor(key: &[u8], nonce: &[u8], mut n: u64, mut data: &mut[u8]) {
 		// Verify input
-		assert_eq!(CHACHA20_KEY, key.len());
-		assert_eq!(CHACHA20_NONCE, nonce.len());
+		assert_eq!(XCHACHA20_KEY, key.len());
+		assert_eq!(XCHACHA20_NONCE, nonce.len());
+		
+		// Derive key
+		let (x_nonce, nonce) = nonce.split_at(16);
+		let mut x_key = vec![0; 32];
+		hchacha20_hash(key, x_nonce, &mut x_key);
 		
 		// XOR `data`
 		let mut buf = vec![0; 64];
 		while !data.is_empty() {
 			// Compute next block
-			chacha20_ietf_block(key, nonce, n, &mut buf);
-			n = n.checked_add(1).expect("The ChaCha20-IETF block counter must not exceed 2^32 - 1");
+			chacha20_block(&x_key, nonce, n, &mut buf);
+			n = n.checked_add(1).expect("The ChaCha20 block counter must not exceed 2^64 - 1");
 			
 			// Xor block
 			let to_xor = min(data.len(), buf.len());
@@ -57,24 +61,24 @@ impl ChaCha20Ietf {
 		}
 	}
 }
-impl SecKeyGen for ChaCha20Ietf {
+impl SecKeyGen for XChaCha20 {
 	fn new_sec_key(&self, buf: &mut[u8], rng: &mut dyn SecureRng)
 		-> Result<usize, Box<dyn Error + 'static>>
 	{
 		// Verify input
-		vfy_keygen!(CHACHA20_KEY => buf);
+		vfy_keygen!(XCHACHA20_KEY => buf);
 		
 		// Generate key
-		rng.random(&mut buf[..CHACHA20_KEY])?;
-		Ok(CHACHA20_KEY)
+		rng.random(&mut buf[..XCHACHA20_KEY])?;
+		Ok(XCHACHA20_KEY)
 	}
 }
-impl Cipher for ChaCha20Ietf {
+impl Cipher for XChaCha20 {
 	fn info(&self) -> CipherInfo {
 		CipherInfo {
-			name: "ChaCha20Ietf", is_otc: true,
-			key_len_r: CHACHA20_KEY..CHACHA20_KEY,
-			nonce_len_r: CHACHA20_NONCE..CHACHA20_NONCE,
+			name: "XChaCha20", is_otc: true,
+			key_len_r: XCHACHA20_KEY..XCHACHA20_KEY,
+			nonce_len_r: XCHACHA20_NONCE..XCHACHA20_NONCE,
 			aead_tag_len_r: 0..0
 		}
 	}
@@ -88,8 +92,8 @@ impl Cipher for ChaCha20Ietf {
 	{
 		// Verify input
 		vfy_enc!(
-			key => [CHACHA20_KEY], nonce => [CHACHA20_NONCE],
-			plaintext_len => [buf, CHACHA20_MAX]
+			key => [XCHACHA20_KEY], nonce => [XCHACHA20_NONCE],
+			plaintext_len => [buf, XCHACHA20_MAX]
 		);
 		
 		// Encrypt the data
@@ -101,8 +105,8 @@ impl Cipher for ChaCha20Ietf {
 	{
 		// Verify input
 		vfy_enc!(
-			key => [CHACHA20_KEY], nonce => [CHACHA20_NONCE],
-			plaintext => [buf, CHACHA20_MAX]
+			key => [XCHACHA20_KEY], nonce => [XCHACHA20_NONCE],
+			plaintext => [buf, XCHACHA20_MAX]
 		);
 		
 		// Fill `buf` and encrypt the data in place
@@ -116,8 +120,8 @@ impl Cipher for ChaCha20Ietf {
 	{
 		// Verify input
 		vfy_dec!(
-			key => [CHACHA20_KEY], nonce => [CHACHA20_NONCE],
-			ciphertext_len => [buf, CHACHA20_MAX]
+			key => [XCHACHA20_KEY], nonce => [XCHACHA20_NONCE],
+			ciphertext_len => [buf, XCHACHA20_MAX]
 		);
 		
 		// Encrypt the data
@@ -129,8 +133,8 @@ impl Cipher for ChaCha20Ietf {
 	{
 		// Verify input
 		vfy_dec!(
-			key => [CHACHA20_KEY], nonce => [CHACHA20_NONCE],
-			ciphertext => [buf, CHACHA20_MAX]
+			key => [XCHACHA20_KEY], nonce => [XCHACHA20_NONCE],
+			ciphertext => [buf, XCHACHA20_MAX]
 		);
 		
 		// Fill `buf` and encrypt the data in place

@@ -5,7 +5,7 @@
 [![Download numbers](https://img.shields.io/crates/d/crypto_api_chachapoly.svg)](https://crates.io/crates/crypto_api_chachapoly)
 [![Travis CI](https://travis-ci.org/KizzyCode/crypto_api_chachapoly.svg?branch=master)](https://travis-ci.org/KizzyCode/crypto_api_chachapoly)
 [![AppVeyor CI](https://ci.appveyor.com/api/projects/status/github/KizzyCode/crypto_api_chachapoly?svg=true)](https://ci.appveyor.com/project/KizzyCode/crypto-api-chachapoly)
-[![dependency status](https://deps.rs/crate/crypto_api_chachapoly/0.3.0/status.svg)](https://deps.rs/crate/crypto_api_chachapoly/0.3.0)
+[![dependency status](https://deps.rs/crate/crypto_api_chachapoly/0.4.0/status.svg)](https://deps.rs/crate/crypto_api_chachapoly/0.4.0)
 
 # crypto_api_chachapoly
 Welcome to `crypto_api_chachapoly` 🎉
@@ -13,9 +13,10 @@ Welcome to `crypto_api_chachapoly` 🎉
 
 ## About
 This crate implements
-[the IETF version of ChaCha20](https://tools.ietf.org/html/rfc8439#section-2.4),
-[Poly1305](https://tools.ietf.org/html/rfc8439#section-2.5) and the
-[ChachaPoly-IETF AEAD construction](https://tools.ietf.org/html/rfc8439#section-2.8).
+[the IETF version of ChaCha20](https://tools.ietf.org/html/rfc8439#section-2.4), XChaCha20,
+[Poly1305](https://tools.ietf.org/html/rfc8439#section-2.5),
+[ChachaPoly-IETF AEAD construction](https://tools.ietf.org/html/rfc8439#section-2.8) and 
+XChachaPoly.
 
 
 ## Security
