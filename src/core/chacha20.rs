@@ -38,21 +38,16 @@ fn chacha20_rounds(state: &mut[u32]) {
 
 /// A HChaCha20 implementation
 pub fn hchacha20_hash(key: &[u8], nonce: &[u8], buf: &mut[u8]) {
-	// Read key and nonce
-	let mut key_words = vec![0; 8];
-	(0..8).for_each(|i| key_words[i] = read32_le!(&key[i * 4..]));
-	
-	let mut input_words = vec![0; 4];
-	(0..4).for_each(|i| input_words[i] = read32_le!(&nonce[i * 4..]));
-	
-	// Initialize and compute block
+	// Create and init state
 	let mut state = vec![0u32; 16];
-	state[ 0.. 4].copy_from_slice(&CONSTANTS);
-	state[ 4..12].copy_from_slice(&key_words);
-	state[12..16].copy_from_slice(&input_words);
+	( 0.. 4).for_each(|i| state[i] = CONSTANTS[i]);
+	( 4..12).for_each(|i| state[i] = read32_le!(  &key[(i -  4) * 4..]));
+	(12..16).for_each(|i| state[i] = read32_le!(&nonce[(i - 12) * 4..]));
+	
+	// Mix the state
 	chacha20_rounds(&mut state);
 	
-	// Write output
+	// Write the output
 	let (buf0, buf1) = buf.split_at_mut(16);
 	( 0.. 4).for_each(|i| write32_le!(state[i] => &mut buf0[ i       * 4..]));
 	(12..16).for_each(|i| write32_le!(state[i] => &mut buf1[(i - 12) * 4..]));
