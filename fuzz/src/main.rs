@@ -174,7 +174,7 @@ fn main() {
 	}
 	
 	// Print progress
-	println!("Starting fuzzing [TEST_VECTOR_LIMIT is {} bytes]...", limit);
+	println!("Starting fuzzing [THREADS = {}, TEST_VECTOR_LIMIT = {} bytes]...", threads, limit);
 	loop {
 		thread::sleep(Duration::from_secs(5));
 		println!("Performed {} tests...", COUNTER.load(Relaxed));
