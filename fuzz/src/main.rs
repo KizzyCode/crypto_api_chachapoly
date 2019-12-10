@@ -1,33 +1,52 @@
 use crypto_api_chachapoly::{ ChachaPolyIetf, XChachaPoly, crypto_api::cipher::AeadCipher };
-use crypto_api_osrandom::{ OsRandom, crypto_api::rng::SecureRng };
-use sodiumoxide::crypto::aead::{ chacha20poly1305_ietf, xchacha20poly1305_ietf };
+use sodiumoxide::crypto::{
+	stream::salsa20,
+	aead::{ chacha20poly1305_ietf, xchacha20poly1305_ietf }
+};
 use hex::ToHex;
 use std::{
-	env, thread, error::Error, ops::Range, str::FromStr, time::Duration,
+	env, thread, ops::Range, str::FromStr, time::Duration,
 	sync::atomic::{ AtomicU64, Ordering::Relaxed }
 };
 
+
+/// Set jemalloc as allocator if specified
+#[cfg(feature = "jemalloc")]
+	#[global_allocator] static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 /// An atomic test counter
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 
-/// An extension trait for `SecureRng`
-trait SecureRngExt {
-	/// Generates a random `len`-sized vector
-	fn random_vec(&mut self, len: usize) -> Result<Vec<u8>, Box<dyn Error + 'static>>;
-	/// Computes a random number in `range`
-	fn random_range(&mut self, range: Range<u128>) -> Result<u128, Box<dyn Error + 'static>>;
-	/// Creates a vec with random sized length within `range` filled with random data
-	fn random_len_vec(&mut self, range: Range<usize>) -> Result<Vec<u8>, Box<dyn Error + 'static>>;
+/// A fast but still secure RNG
+struct SecureRng {
+	seed: salsa20::Key,
+	ctr: u64
 }
-impl SecureRngExt for OsRandom {
-	fn random_vec(&mut self, len: usize) -> Result<Vec<u8>, Box<dyn Error + 'static>> {
-		let mut buf = vec![0; len];
-		self.random(&mut buf)?;
-		Ok(buf)
+impl SecureRng {
+	/// Creates a new RNG
+	pub fn new() -> Self {
+		Self{ seed: salsa20::gen_key(), ctr: 0 }
 	}
-	fn random_range(&mut self, range: Range<u128>) -> Result<u128, Box<dyn Error + 'static>> {
+	
+	/// Fills `buf` with secure random bytes
+	pub fn random(&mut self, buf: &mut[u8]) {
+		// Create nonce
+		let nonce = salsa20::Nonce::from_slice(&self.ctr.to_be_bytes()).unwrap();
+		self.ctr += 1;
+		
+		// Create random bytes
+		buf.iter_mut().for_each(|b| *b = 0);
+		salsa20::stream_xor_inplace(buf, &nonce, &self.seed);
+	}
+	/// Creates a `len`-sized vector filled with secure random bytes
+	pub fn random_vec(&mut self, len: usize) -> Vec<u8> {
+		let mut buf = vec![0; len];
+		self.random(&mut buf);
+		buf
+	}
+	/// Computes a secure random number within `range`
+	pub fn random_range(&mut self, range: Range<u128>) -> u128 {
 		// Compute the bucket size and amount
 		let bucket_size = range.end - range.start;
 		let bucket_count = u128::max_value() / bucket_size;
@@ -36,18 +55,19 @@ impl SecureRngExt for OsRandom {
 		let mut num = [0; 16];
 		loop {
 			// Generates a random number
-			self.random(&mut num)?;
+			self.random(&mut num);
 			let num = u128::from_ne_bytes(num);
 			
 			// Check if the number falls into the
 			if num < bucket_size * bucket_count {
-				return Ok((num % bucket_size) + range.start)
+				return (num % bucket_size) + range.start
 			}
 		}
 	}
-	fn random_len_vec(&mut self, range: Range<usize>) -> Result<Vec<u8>, Box<dyn Error + 'static>> {
+	/// Creates a vec with random sized length within `range` filled with secure random data
+	pub fn random_len_vec(&mut self, range: Range<usize>) -> Vec<u8> {
 		let range = (range.start as u128)..(range.end as u128);
-		let len = self.random_range(range)? as usize;
+		let len = self.random_range(range) as usize;
 		self.random_vec(len)
 	}
 }
@@ -55,19 +75,19 @@ impl SecureRngExt for OsRandom {
 
 /// A `ChachaPolyIetf` test vector
 struct ChachaPolyIetfTV {
-	key: chacha20poly1305_ietf::Key,
-	nonce: chacha20poly1305_ietf::Nonce,
+	key: Vec<u8>,
+	nonce: Vec<u8>,
 	plaintext: Vec<u8>,
 	ad: Vec<u8>
 }
 impl ChachaPolyIetfTV {
 	/// Creates a random test vector
-	pub fn random(limit: usize) -> Self {
+	pub fn random(limit: usize, rng: &mut SecureRng) -> Self {
 		Self {
-			key: chacha20poly1305_ietf::gen_key(),
-			nonce: chacha20poly1305_ietf::gen_nonce(),
-			plaintext: OsRandom.random_len_vec(0..limit).unwrap(),
-			ad: OsRandom.random_len_vec(0..limit).unwrap()
+			key: rng.random_vec(32),
+			nonce: rng.random_vec(12),
+			plaintext: rng.random_len_vec(0..limit),
+			ad: rng.random_len_vec(0..limit)
 		}
 	}
 	
@@ -84,14 +104,15 @@ impl ChachaPolyIetfTV {
 		let ct_sodium = chacha20poly1305_ietf::seal(
 			&self.plaintext,
 			if self.ad.len() > 0 { Some(&self.ad) } else { None },
-			&self.nonce, &self.key
+			&chacha20poly1305_ietf::Nonce::from_slice(&self.nonce).unwrap(),
+			&chacha20poly1305_ietf::Key::from_slice(&self.key).unwrap()
 		);
 		
 		// Compare the data
 		if ct_ours != ct_sodium {
 			eprintln!("ChachaPoly Mismatch!. Inputs:");
-			eprintln!("Key: {}", self.key.as_ref().encode_hex::<String>());
-			eprintln!("Nonce: {}", self.nonce.as_ref().encode_hex::<String>());
+			eprintln!("Key: {}", self.key.encode_hex::<String>());
+			eprintln!("Nonce: {}", self.nonce.encode_hex::<String>());
 			eprintln!("Plaintext: {}", self.plaintext.encode_hex::<String>());
 			eprintln!("Additional data: {}", self.ad.encode_hex::<String>());
 			eprintln!("Outputs:");
@@ -106,19 +127,19 @@ impl ChachaPolyIetfTV {
 
 /// A `XChachaPoly` test vector
 struct XChachaPolyTV {
-	key: xchacha20poly1305_ietf::Key,
-	nonce: xchacha20poly1305_ietf::Nonce,
+	key: Vec<u8>,
+	nonce: Vec<u8>,
 	plaintext: Vec<u8>,
 	ad: Vec<u8>
 }
 impl XChachaPolyTV {
 	/// Creates a random test vector
-	pub fn random(limit: usize) -> Self {
+	pub fn random(limit: usize, rng: &mut SecureRng) -> Self {
 		Self {
-			key: xchacha20poly1305_ietf::gen_key(),
-			nonce: xchacha20poly1305_ietf::gen_nonce(),
-			plaintext: OsRandom.random_len_vec(0..limit).unwrap(),
-			ad: OsRandom.random_len_vec(0..limit).unwrap()
+			key: rng.random_vec(32),
+			nonce: rng.random_vec(24),
+			plaintext: rng.random_len_vec(0..limit),
+			ad: rng.random_len_vec(0..limit)
 		}
 	}
 	
@@ -135,14 +156,15 @@ impl XChachaPolyTV {
 		let ct_sodium = xchacha20poly1305_ietf::seal(
 			&self.plaintext,
 			if self.ad.len() > 0 { Some(&self.ad) } else { None },
-			&self.nonce, &self.key
+			&xchacha20poly1305_ietf::Nonce::from_slice(&self.nonce).unwrap(),
+			&xchacha20poly1305_ietf::Key::from_slice(&self.key).unwrap()
 		);
 		
 		// Compare the data
 		if ct_ours != ct_sodium {
 			eprintln!("XChachaPoly Mismatch!. Inputs:");
-			eprintln!("Key: {}", self.key.as_ref().encode_hex::<String>());
-			eprintln!("Nonce: {}", self.nonce.as_ref().encode_hex::<String>());
+			eprintln!("Key: {}", self.key.encode_hex::<String>());
+			eprintln!("Nonce: {}", self.nonce.encode_hex::<String>());
 			eprintln!("Plaintext: {}", self.plaintext.encode_hex::<String>());
 			eprintln!("Additional data: {}", self.ad.encode_hex::<String>());
 			eprintln!("Outputs:");
@@ -167,9 +189,10 @@ fn main() {
 	
 	// Start fuzzing threads
 	for _ in 0 .. threads {
+		let mut rng = SecureRng::new();
 		thread::spawn(move || loop {
-			ChachaPolyIetfTV::random(limit).test();
-			XChachaPolyTV::random(limit).test()
+			ChachaPolyIetfTV::random(limit, &mut rng).test();
+			XChachaPolyTV::random(limit, &mut rng).test()
 		});
 	}
 	
