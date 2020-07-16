@@ -108,7 +108,7 @@
 	($a:expr, $b:expr) => ({
 		match $a.len() == $b.len() {
 			true => {
-				let mut x = 0;
+				let mut x: u8 = 0;
 				for i in 0..$a.len() { x = or!(x, xor!($a[i], $b[i])) }
 				x == 0
 			},
