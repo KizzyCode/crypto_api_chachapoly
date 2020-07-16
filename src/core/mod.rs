@@ -119,6 +119,6 @@
 
 
 /// The ChaCha20 core implementation
-pub mod chacha20;
+pub(in crate) mod chacha20;
 /// The Poly1305 core implementation
-pub mod poly1305;
+pub(in crate) mod poly1305;
