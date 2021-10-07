@@ -86,9 +86,9 @@ impl Cipher for XChachaPoly {
 	fn info(&self) -> CipherInfo {
 		CipherInfo {
 			name: "XChachaPoly", is_otc: true,
-			key_len_r: XCHACHAPOLY_KEY..XCHACHAPOLY_KEY,
-			nonce_len_r: XCHACHAPOLY_NONCE..XCHACHAPOLY_NONCE,
-			aead_tag_len_r: XCHACHAPOLY_TAG..XCHACHAPOLY_TAG
+			key_len_r: XCHACHAPOLY_KEY..(XCHACHAPOLY_KEY + 1),
+			nonce_len_r: XCHACHAPOLY_NONCE..(XCHACHAPOLY_NONCE + 1),
+			aead_tag_len_r: XCHACHAPOLY_TAG..(XCHACHAPOLY_TAG + 1)
 		}
 	}
 	

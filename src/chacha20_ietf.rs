@@ -73,9 +73,9 @@ impl Cipher for ChaCha20Ietf {
 	fn info(&self) -> CipherInfo {
 		CipherInfo {
 			name: "ChaCha20Ietf", is_otc: true,
-			key_len_r: CHACHA20_KEY..CHACHA20_KEY,
-			nonce_len_r: CHACHA20_NONCE..CHACHA20_NONCE,
-			aead_tag_len_r: 0..0
+			key_len_r: CHACHA20_KEY..(CHACHA20_KEY + 1),
+			nonce_len_r: CHACHA20_NONCE..(CHACHA20_NONCE + 1),
+			aead_tag_len_r: 0..(0 + 1)
 		}
 	}
 	

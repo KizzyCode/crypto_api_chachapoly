@@ -51,7 +51,7 @@ impl<T, E> ResultExt<T, E> for Result<T, E> {
 	fn error_or(self, m: impl ToString) -> E {
 		match self {
 			Err(e) => e,
-			_ => panic!(m.to_string())
+			_ => panic!("{}", m.to_string())
 		}
 	}
 }

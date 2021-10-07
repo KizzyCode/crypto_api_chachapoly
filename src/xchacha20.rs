@@ -77,9 +77,9 @@ impl Cipher for XChaCha20 {
 	fn info(&self) -> CipherInfo {
 		CipherInfo {
 			name: "XChaCha20", is_otc: true,
-			key_len_r: XCHACHA20_KEY..XCHACHA20_KEY,
-			nonce_len_r: XCHACHA20_NONCE..XCHACHA20_NONCE,
-			aead_tag_len_r: 0..0
+			key_len_r: XCHACHA20_KEY..(XCHACHA20_KEY + 1),
+			nonce_len_r: XCHACHA20_NONCE..(XCHACHA20_NONCE + 1),
+			aead_tag_len_r: 0..(0 + 1)
 		}
 	}
 	
