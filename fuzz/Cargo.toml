@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [features]
-default = ["jemallocator"]
+default = []
 
 
 [dependencies]
@@ -14,7 +14,6 @@ crypto_api_chachapoly = { path = "../" }
 sodiumoxide = "^0.2"
 num_cpus = "^1.11"
 hex = "^0.4"
-jemallocator = { version = "^0.3", optional = true }
 
 
 [profile.dev]
