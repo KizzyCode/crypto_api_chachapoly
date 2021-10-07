@@ -9,28 +9,28 @@ mod chachapoly_ietf;
 mod xchachapoly;
 
 pub use crate::{
-	chacha20_ietf::ChaCha20Ietf, xchacha20::XChaCha20,
-	poly1305::Poly1305,
-	chachapoly_ietf::ChachaPolyIetf, xchachapoly::XChachaPoly
+    chacha20_ietf::ChaCha20Ietf, xchacha20::XChaCha20,
+    poly1305::Poly1305,
+    chachapoly_ietf::ChachaPolyIetf, xchachapoly::XChachaPoly
 };
 pub use crypto_api;
 use std::{
-	error::Error,
-	fmt::{ self, Display, Formatter }
+    error::Error,
+    fmt::{ self, Display, Formatter }
 };
 
 
 /// A ChaChaPoly-related error
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum ChachaPolyError {
-	/// The processed data is invalid (MAC-mismatch)
-	InvalidData,
-	/// An API misuse happened
-	ApiMisuse(&'static str)
+    /// The processed data is invalid (MAC-mismatch)
+    InvalidData,
+    /// An API misuse happened
+    ApiMisuse(&'static str)
 }
 impl Display for ChachaPolyError {
-	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "{:?}", self)
-	}
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 impl Error for ChachaPolyError {}
